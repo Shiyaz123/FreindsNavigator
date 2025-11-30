@@ -28,8 +28,15 @@ let myPosition = null;
 let displayName = null;
 
 // Wait for DOM and Firebase to be ready
-document.addEventListener('DOMContentLoaded', () => {
+function initializeApp() {
   try {
+    // Check if Firebase is available
+    if (typeof firebase === 'undefined') {
+      console.error('Firebase is not loaded!');
+      alert('Firebase failed to load. Please refresh the page.');
+      return;
+    }
+
     // Init Firebase
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
@@ -47,15 +54,42 @@ document.addEventListener('DOMContentLoaded', () => {
     initApp();
   } catch (error) {
     console.error('Initialization error:', error);
-    alert('Failed to initialize app. Check console for details.');
+    alert('Failed to initialize app: ' + error.message);
+  }
+}
+
+// Wait for DOM
+document.addEventListener('DOMContentLoaded', () => {
+  // Wait for Firebase to be ready
+  if (window.firebaseReady || typeof firebase !== 'undefined') {
+    initializeApp();
+  } else {
+    window.initAppWhenReady = initializeApp;
+    // Fallback: try after a short delay
+    setTimeout(() => {
+      if (typeof firebase !== 'undefined') {
+        initializeApp();
+      } else {
+        console.error('Firebase still not loaded after timeout');
+        alert('Firebase failed to load. Please check your internet connection and refresh.');
+      }
+    }, 2000);
   }
 });
 
 function initApp() {
+  console.log("✅ initApp() called - App initializing...");
+  
   // Views
   function show(view) {
+    console.log("Switching to view:", view);
     document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
-    document.getElementById(view).classList.add("active");
+    const targetView = document.getElementById(view);
+    if (targetView) {
+      targetView.classList.add("active");
+    } else {
+      console.error("View not found:", view);
+    }
   }
 
   // Elements
@@ -647,30 +681,58 @@ function initApp() {
   }
 
   // Create team
-  document.getElementById("btnCreate").onclick = () => show("createView");
-  document.getElementById("createCancel").onclick = () => show("homeView");
+  const btnCreate = document.getElementById("btnCreate");
+  const btnJoin = document.getElementById("btnJoin");
+  const createCancel = document.getElementById("createCancel");
+  const createSubmit = document.getElementById("createSubmit");
+  const joinCancel = document.getElementById("joinCancel");
+  const joinSubmit = document.getElementById("joinSubmit");
 
-  document.getElementById("createSubmit").onclick = async () => {
-    const name = createName.value.trim() || "Team";
-    const id = name.replace(/[^a-zA-Z0-9]/g, "") + "_" + Date.now().toString(36);
+  if (!btnCreate || !btnJoin) {
+    console.error("Buttons not found! Check HTML structure.");
+    return;
+  }
 
-    try {
-      await db.ref("teams/" + id).set({ name, createdAt: Date.now() });
-      await db.ref("recentTeams/" + id).set({ name });
-      joinTeam(id);
-    } catch (error) {
-      console.error("Error creating team:", error);
-      alert("Failed to create team. Check console for details.");
-    }
+  btnCreate.onclick = () => {
+    console.log("Create button clicked");
+    show("createView");
   };
+  
+  if (createCancel) {
+    createCancel.onclick = () => show("homeView");
+  }
+
+  if (createSubmit) {
+    createSubmit.onclick = async () => {
+      const name = createName.value.trim() || "Team";
+      const id = name.replace(/[^a-zA-Z0-9]/g, "") + "_" + Date.now().toString(36);
+
+      try {
+        await db.ref("teams/" + id).set({ name, createdAt: Date.now() });
+        await db.ref("recentTeams/" + id).set({ name });
+        joinTeam(id);
+      } catch (error) {
+        console.error("Error creating team:", error);
+        alert("Failed to create team. Check console for details.");
+      }
+    };
+  }
 
   // Join team
-  document.getElementById("btnJoin").onclick = () => show("joinView");
-  document.getElementById("joinCancel").onclick = () => show("homeView");
-
-  document.getElementById("joinSubmit").onclick = () => {
-    joinTeam(joinName.value.trim());
+  btnJoin.onclick = () => {
+    console.log("Join button clicked");
+    show("joinView");
   };
+  
+  if (joinCancel) {
+    joinCancel.onclick = () => show("homeView");
+  }
+
+  if (joinSubmit) {
+    joinSubmit.onclick = () => {
+      joinTeam(joinName.value.trim());
+    };
+  }
 
   // Join team handler
   function joinTeam(teamId) {
@@ -704,19 +766,27 @@ function initApp() {
     initFirebaseListeners();
   }
 
-  // Map controls
-  document.getElementById("btnWaypointMode").onclick = enableWaypointDrop;
-  document.getElementById("btnRecenter").onclick = recenterToUser;
-  document.getElementById("btnWaypointPanel").onclick = toggleWaypointPanel;
-  document.getElementById("leaveTeam").onclick = handleLeaveTeam;
-  document.getElementById("btnAddWaypoint").onclick = () => {
-    if (myPosition) {
-      addWaypoint(myPosition.lat, myPosition.lng);
-    } else {
-      enableWaypointDrop();
-      alert("Click on the map to add a waypoint");
-    }
-  };
+  // Map controls (only if map view elements exist)
+  const btnWaypointMode = document.getElementById("btnWaypointMode");
+  const btnRecenter = document.getElementById("btnRecenter");
+  const btnWaypointPanel = document.getElementById("btnWaypointPanel");
+  const leaveTeamBtn = document.getElementById("leaveTeam");
+  const btnAddWaypoint = document.getElementById("btnAddWaypoint");
+
+  if (btnWaypointMode) btnWaypointMode.onclick = enableWaypointDrop;
+  if (btnRecenter) btnRecenter.onclick = recenterToUser;
+  if (btnWaypointPanel) btnWaypointPanel.onclick = toggleWaypointPanel;
+  if (leaveTeamBtn) leaveTeamBtn.onclick = handleLeaveTeam;
+  if (btnAddWaypoint) {
+    btnAddWaypoint.onclick = () => {
+      if (myPosition) {
+        addWaypoint(myPosition.lat, myPosition.lng);
+      } else {
+        enableWaypointDrop();
+        alert("Click on the map to add a waypoint");
+      }
+    };
+  }
 
   // Tab switching
   document.querySelectorAll(".tab-btn").forEach(btn => {
@@ -736,5 +806,7 @@ function initApp() {
   };
 
   // Initialize
+  console.log("✅ All event handlers attached");
   loadRecent();
+  console.log("✅ App initialized successfully!");
 }

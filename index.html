@@ -11,6 +11,20 @@
 
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script>
+    // Ensure Firebase is loaded before running script
+    window.firebaseReady = false;
+    if (typeof firebase !== 'undefined') {
+      window.firebaseReady = true;
+    } else {
+      window.addEventListener('load', () => {
+        if (typeof firebase !== 'undefined') {
+          window.firebaseReady = true;
+          if (window.initAppWhenReady) window.initAppWhenReady();
+        }
+      });
+    }
+  </script>
 </head>
 <body>
   <header class="topbar"><h1 id="teamTitle">FriendsNavigator</h1></header>
@@ -87,6 +101,11 @@
   <footer class="footer">FriendsNavigator - Real-time location sharing</footer>
 
   <script src="script.js"></script>
+  <script>
+    // Debug: Check if script loaded
+    console.log("✅ HTML loaded, script.js should be loading...");
+    console.log("Firebase ready:", typeof firebase !== 'undefined');
+  </script>
 </body>
 </html>
 
