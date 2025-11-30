@@ -88,37 +88,48 @@ export default function LiveMap() {
     return () => unsubscribe();
   }, [teamId, userId, userName, toast, setLocationPath]);
 
+  const [mapError, setMapError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!mapContainer.current || map.current) return;
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: "mapbox://styles/mapbox/streets-v12",
-      center: [-74.5, 40],
-      zoom: 12,
-    });
+    try {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: "mapbox://styles/mapbox/streets-v12",
+        center: [-74.5, 40],
+        zoom: 12,
+      });
 
-    map.current.addControl(new mapboxgl.NavigationControl(), "bottom-right");
+      map.current.addControl(new mapboxgl.NavigationControl(), "bottom-right");
 
-    map.current.on("load", () => {
-      setMapLoaded(true);
-    });
+      map.current.on("load", () => {
+        setMapLoaded(true);
+      });
 
-    map.current.on("click", (e) => {
-      if (isSettingMeetup) {
-        const point: MeetupPoint = {
-          lat: e.lngLat.lat,
-          lng: e.lngLat.lng,
-          setBy: userId,
-        };
-        setMeetupPoint(teamId, point);
-        setIsSettingMeetup(false);
-        toast({
-          title: "Meet-up point set",
-          description: "All team members can now see directions",
-        });
-      }
-    });
+      map.current.on("error", (e) => {
+        console.error("Mapbox error:", e);
+      });
+
+      map.current.on("click", (e) => {
+        if (isSettingMeetup) {
+          const point: MeetupPoint = {
+            lat: e.lngLat.lat,
+            lng: e.lngLat.lng,
+            setBy: userId,
+          };
+          setMeetupPoint(teamId, point);
+          setIsSettingMeetup(false);
+          toast({
+            title: "Meet-up point set",
+            description: "All team members can now see directions",
+          });
+        }
+      });
+    } catch (error) {
+      console.error("Failed to initialize map:", error);
+      setMapError("Map could not be loaded. Please ensure WebGL is enabled in your browser.");
+    }
 
     return () => {
       if (map.current) {
@@ -465,6 +476,18 @@ export default function LiveMap() {
   return (
     <div className="h-screen w-screen relative overflow-hidden">
       <div ref={mapContainer} className="absolute inset-0" data-testid="map-container" />
+      
+      {mapError && (
+        <div className="absolute inset-0 flex items-center justify-center bg-muted z-5">
+          <Card className="max-w-md mx-4">
+            <CardContent className="p-6 text-center">
+              <MapPin className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">Map Unavailable</h3>
+              <p className="text-muted-foreground text-sm">{mapError}</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="absolute top-4 left-4 z-10">
         <Button
