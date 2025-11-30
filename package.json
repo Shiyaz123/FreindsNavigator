@@ -1,0 +1,11 @@
+{
+  "name": "friendsnavigator",
+  "version": "1.0.0",
+  "description": "Local server for FriendsNavigator",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {}
+}
+
+
